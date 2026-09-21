@@ -150,7 +150,7 @@ def handle_command(command):
         else:
             try:
                 r = client.chat.completions.create(
-                    model="openai/gpt-oss-20b",
+                    model="qwen/qwen3.8-27b",
                     messages=[
                         {"role": "system", "content": (
                             "You are ARK. Use the web search results below to answer "
