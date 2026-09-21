@@ -1,18 +1,1 @@
-[
-  {
-    "id": "c8c006cc",
-    "type": "reminder",
-    "message": "reminder",
-    "trigger_at": 1790019000.0012116,
-    "created_at": 1789975591.1845279,
-    "fired": false
-  },
-  {
-    "id": "44dac3d6",
-    "type": "reminder",
-    "message": "check the door",
-    "trigger_at": 1789975694.105837,
-    "created_at": 1789975634.1058393,
-    "fired": true
-  }
-]
+[]
