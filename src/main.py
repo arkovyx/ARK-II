@@ -1,0 +1,274 @@
+import time
+import os
+import threading
+
+from groq import Groq
+from dotenv import load_dotenv
+
+from src.core.nlp import classify
+from src.core import state
+from src.core.command_reader import read_new_commands
+from src.features.memory import remember, forget, recall, list_all
+from src.features.reminders import (
+    add_reminder, add_alarm, list_pending, start_checker
+)
+from src.features.alarms import parse_time_expression, extract_message
+from src.features.news import get_top_headlines, search_news
+from src.features.search import web_search
+
+# TTS is optional
+try:
+    from src.features.tts import speak
+    TTS_ENABLED = True
+except ImportError:
+    TTS_ENABLED = False
+    def speak(text):
+        return "tts-disabled"
+
+
+load_dotenv()
+api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=api_key)
+
+
+def handle_command(command):
+    """Central brain — shared by terminal, web, voice."""
+    command = command.strip()
+    if not command:
+        return None
+
+    # Special commands
+    if command == "clear":
+        state.clear_history()
+        return "🧹 cleared"
+
+    # Log user message
+    state.append_history("user", command)
+    state.set_status("thinking")
+
+    # Classify
+    intent_data = classify(command)
+    if not intent_data:
+        intent_data = {"intent": "chat", "entities": {}}
+    intent = intent_data.get("intent", "chat")
+    entities = intent_data.get("entities", {})
+
+    # ============================================
+    # INTENT HANDLERS
+    # ============================================
+
+    if intent == "time":
+        response = time.strftime("%I:%M %p")
+
+    elif intent == "date":
+        response = time.strftime("%B %d, %Y")
+
+    elif intent == "time_and_date":
+        response = f"{time.strftime('%I:%M %p')} — {time.strftime('%B %d, %Y')}"
+
+    elif intent == "greeting":
+        response = "Hello! How can I assist you today?"
+
+    elif intent == "goodbye":
+        response = "Goodbye! See you again!"
+
+    elif intent == "thank_you":
+        response = "You're welcome!"
+
+    elif intent == "how_are_you":
+        response = "I'm doing great! Thanks for asking."
+
+    elif intent == "remember":
+        k = entities.get("key", "")
+        v = entities.get("value", "")
+        response = remember(k, v) if k and v else "Please tell me what to remember."
+
+    elif intent == "recall":
+        key = entities.get("key", "")
+        if not key:
+            response = list_all()
+        else:
+            result = recall(key)
+            response = f"{key} = {result}" if result else f"I don't remember: {key}"
+
+    elif intent == "forget":
+        key = entities.get("key", "")
+        response = forget(key) if key else "What should I forget?"
+
+    elif intent == "list_memories":
+        response = list_all()
+
+    elif intent == "calculate":
+        import re
+        expr = re.sub(r"[^0-9+\-*/()\s.]", "", command)
+        try:
+            response = f"Solution: {eval(expr)}"
+        except Exception:
+            response = "I couldn't calculate that."
+
+    elif intent == "reminder":
+        text = entities.get("text", command)
+        secs, human = parse_time_expression(text)
+        if not secs:
+            response = "I couldn't understand the time. Try: 'remind me in 5 minutes to check the oven'"
+        else:
+            msg = extract_message(text)
+            item = add_reminder(msg, secs)
+            response = f"⏰ Reminder set: '{msg}' in {human} (id: {item['id']})"
+
+    elif intent == "alarm":
+        text = entities.get("text", command)
+        secs, human = parse_time_expression(text)
+        if not secs:
+            response = "I couldn't understand the time. Try: 'set an alarm for 7:30 AM'"
+        else:
+            msg = extract_message(text)
+            item = add_alarm(msg, time.time() + secs)
+            response = f"⏱️ Alarm set for {human} (id: {item['id']})"
+
+    elif intent == "list_reminders":
+        pending = list_pending()
+        if not pending:
+            response = "No pending reminders or alarms."
+        else:
+            lines = ["Pending:"]
+            now = time.time()
+            for r in pending:
+                remaining = int(r["trigger_at"] - now)
+                mins = remaining // 60
+                secs = remaining % 60
+                when = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+                icon = "⏰" if r["type"] == "reminder" else "⏱️"
+                lines.append(f"  {icon} [{r['id']}] {r['message']} — in {when}")
+            response = "\n".join(lines)
+
+    elif intent == "web_search":
+        query = entities.get("query", command)
+        result, err = web_search(query)
+        if err:
+            response = err
+        else:
+            try:
+                r = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[
+                        {"role": "system", "content": (
+                            "You are ARK. Use the web search results below to answer "
+                            "the user's question. Cite sources by number [1], [2] when "
+                            "relevant. Be concise."
+                        )},
+                        {"role": "user", "content": (
+                            f"Question: {query}\n\n"
+                            f"Web results:\n{result['context']}"
+                        )},
+                    ],
+                    temperature=0.3,
+                    max_tokens=800,
+                )
+                response = r.choices[0].message.content
+            except Exception as e:
+                response = f"❌ LLM error: {e}"
+
+    elif intent == "news":
+        cmd_lower = command.lower()
+        region = "india"
+        if "tech" in cmd_lower:
+            region = "tech"
+        elif "world" in cmd_lower:
+            region = "world"
+        elif "business" in cmd_lower:
+            region = "business"
+        elif "science" in cmd_lower:
+            region = "science"
+        elif "hacker" in cmd_lower or "hn" in cmd_lower:
+            region = "hackernews"
+        response = get_top_headlines(region=region)
+
+    else:
+        # Fallback: chat with AI
+        try:
+            r = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[
+                    {"role": "system", "content": "You are ARK, a helpful AI assistant. Be concise but complete."},
+                    {"role": "user", "content": command},
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+            )
+            response = r.choices[0].message.content
+        except Exception as e:
+            response = f"API Error: {e}"
+
+    # Log response + reset status
+    state.append_history("ark", response)
+    state.set_status("idle")
+
+    return response
+
+
+def terminal_loop():
+    """Keyboard input in background thread."""
+    while True:
+        try:
+            cmd = input("> ").strip()
+            if not cmd:
+                continue
+            if cmd == "exit":
+                os._exit(0)
+            response = handle_command(cmd)
+            if response:
+                print(f"🤖 {response}\n")
+        except (EOFError, KeyboardInterrupt):
+            os._exit(0)
+
+
+def web_poll_loop():
+    """Poll commands.json for web-submitted commands."""
+    while True:
+        try:
+            commands = read_new_commands()
+            for cmd in commands:
+                print(f"🌐 [web] {cmd}")
+                response = handle_command(cmd)
+                if response:
+                    print(f"🤖 {response}\n")
+                    if TTS_ENABLED:
+                        try:
+                            speak(response[:500])
+                        except Exception:
+                            pass
+        except Exception as e:
+            print(f"command_reader error: {e}")
+        time.sleep(0.5)
+
+
+def main():
+    state.init()
+    state.append_history("ark", "ARK online. Type, speak, or use the web UI.")
+
+    start_checker()
+
+    print("""
+╔══════════════════════════════════════════╗
+║              ARK-II                      ║
+║  Terminal: type commands                 ║
+║  Web:      http://localhost:8000         ║
+╚══════════════════════════════════════════╝
+""")
+
+    t1 = threading.Thread(target=web_poll_loop, daemon=True)
+    t1.start()
+
+    t2 = threading.Thread(target=terminal_loop, daemon=True)
+    t2.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\n👋 Bye")
+
+
+if __name__ == "__main__":
+    main()
