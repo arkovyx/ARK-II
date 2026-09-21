@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ARK-II · Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body class="chat-body">
+    <div class="grain"></div>
+    <canvas id="bg-ring"></canvas>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span class="mark">◈</span>
+            <span class="name">ARK-II</span>
+        </div>
+
+        <a class="nav-item" href="/">
+            <span class="icon">🏠</span>
+            <span class="label">Dashboard</span>
+        </a>
+        <a class="nav-item active" href="/chat">
+            <span class="icon">💬</span>
+            <span class="label">Chat</span>
+        </a>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-bottom">
+            <a class="nav-item" href="#">
+                <span class="icon">⚙</span>
+                <span class="label">Config</span>
+            </a>
+            <a class="nav-item" href="#">
+                <span class="icon">📊</span>
+                <span class="label">Stats</span>
+            </a>
+        </div>
+
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
+    </aside>
+
+    <main class="main chat-main">
+        <header class="header">
+            <div class="page-title">Chat</div>
+            <div class="header-right">
+                <span class="clock" id="clock">--:--</span>
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">connecting</span>
+            </div>
+        </header>
+
+        <section class="chat-log" id="chat">
+            <div class="empty" id="empty">
+                <div class="empty-line">◈</div>
+                <div class="empty-text">Ready when you are.</div>
+            </div>
+        </section>
+
+        <footer class="input-bar">
+            <span class="prompt-symbol">›</span>
+            <input id="input" type="text" placeholder="type a command..." autocomplete="off" spellcheck="false" />
+            <button class="mic-btn" id="mic-btn" disabled title="Mic coming soon">🎤</button>
+            <button class="send-btn" id="send" title="Send">↵</button>
+        </footer>
+    </main>
+
+    <script src="chat.js"></script>
+</body>
+</html>
