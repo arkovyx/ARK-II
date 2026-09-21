@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ARK-II</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body class="dashboard-body">
+    <div class="grain"></div>
+    <canvas id="bg-particles"></canvas>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span class="mark">◈</span>
+            <span class="name">ARK-II</span>
+        </div>
+        <a class="nav-item active" href="/">
+            <span class="icon">🏠</span>
+            <span class="label">Dashboard</span>
+        </a>
+        <a class="nav-item" href="/chat">
+            <span class="icon">💬</span>
+            <span class="label">Chat</span>
+        </a>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-bottom">
+            <a class="nav-item" href="#">
+                <span class="icon">⚙</span>
+                <span class="label">Config</span>
+            </a>
+            <a class="nav-item" href="#">
+                <span class="icon">📊</span>
+                <span class="label">Stats</span>
+            </a>
+        </div>
+        <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
+    </aside>
+
+    <main class="main dashboard-main">
+        <header class="header">
+            <div class="page-title"><span class="mark">◈</span> Dashboard</div>
+            <div class="header-right">
+                <span class="clock" id="clock">--:--</span>
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">connecting</span>
+            </div>
+        </header>
+
+        <section class="hero-section">
+            <div class="hero-left">
+                <h1 class="hero-title">ARK-II</h1>
+                <p class="hero-description">
+                    ARK-II is a personal AI assistant built for the command line and browser.
+                    It listens, remembers, and acts — running entirely on your machine with
+                    cloud APIs only for intelligence. Designed for developers who want a
+                    real assistant, not a chatbot. Local memory, natural language, and
+                    zero friction. This is what Jarvis would look like if it lived in
+                    your terminal.
+                </p>
+                <a href="/chat" class="cta-button">
+                    <span>Enter Chat</span>
+                    <span class="arrow">→</span>
+                </a>
+            </div>
+
+            <div class="hero-right">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="terminal-dots">
+                            <span class="dot dot-red"></span>
+                            <span class="dot dot-yellow"></span>
+                            <span class="dot dot-green"></span>
+                        </div>
+                        <div class="terminal-title">me@arkovyx: ~</div>
+                    </div>
+                    <div class="terminal-body">
+<pre class="terminal-pre">
+<span class="t-prompt">[me@arkovyx ~]$</span> <span class="t-cmd">cat whoami.py</span>
+<span class="t-code"><span class="t-kw">def</span> <span class="t-fn">main</span>():
+    me = <span class="t-str">"arkovyx"</span>
+    skill = <span class="t-str">"python"</span>
+    working_on = [<span class="t-str">"ark-ii"</span>, <span class="t-str">"rootwave"</span>]
+
+    site = <span class="t-str">"arkovyx.github.io"</span>
+    status = <span class="t-str">"IuseArchBTW..."</span>
+<span class="t-fn">main</span>()</span>
+<span class="t-prompt">[me@arkovyx ~]$</span> <span class="t-cursor">▊</span>
+</pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="docs-section">
+            <div class="docs-grid">
+                <div class="doc-panel">
+                    <div class="doc-title">Overview</div>
+                    <p class="doc-text">
+                        ARK-II is a hybrid AI assistant that lives in your terminal and
+                        browser. It combines local memory, natural language intent
+                        classification, and cloud intelligence to act as a persistent,
+                        always-available partner for daily workflows.
+                    </p>
+                </div>
+
+                <div class="doc-panel">
+                    <div class="doc-title">Technology</div>
+                    <ul class="doc-list">
+                        <li><strong>Core:</strong> Python 3.14</li>
+                        <li><strong>LLM:</strong> Groq (GPT-OSS 20B)</li>
+                        <li><strong>Speech-to-Text:</strong> Groq Whisper</li>
+                        <li><strong>Text-to-Speech:</strong> Google Gemini TTS</li>
+                        <li><strong>Wake Word:</strong> Vosk (local)</li>
+                        <li><strong>Backend:</strong> Flask + WebSockets</li>
+                        <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS</li>
+                        <li><strong>Platform:</strong> Arch Linux + Hyprland</li>
+                    </ul>
+                </div>
+
+                <div class="doc-panel">
+                    <div class="doc-title">Real-World Problems</div>
+                    <ul class="doc-list">
+                        <li>Remembering context across sessions</li>
+                        <li>Managing reminders without opening apps</li>
+                        <li>Quick voice-to-action without lifting hands</li>
+                        <li>Summarizing active windows on demand</li>
+                        <li>Reading and writing from the terminal</li>
+                    </ul>
+                </div>
+
+                <div class="doc-panel">
+                    <div class="doc-title">How It Works</div>
+                    <ul class="doc-list">
+                        <li>User input (terminal, web, or voice)</li>
+                        <li>Intent classified by NLP layer</li>
+                        <li>Handler executes locally or calls AI</li>
+                        <li>State written to <code>data/state.json</code></li>
+                        <li>Web UI polls state every 500ms</li>
+                        <li>Response spoken via Gemini TTS</li>
+                    </ul>
+                </div>
+
+                <div class="doc-panel">
+                    <div class="doc-title">Project Structure</div>
+                    <ul class="doc-list code-list">
+                        <li>src/core — brain, NLP, state</li>
+                        <li>src/features — memory, reminders, voice</li>
+                        <li>src/utils — paths, helpers</li>
+                        <li>web — dashboard + chat UI</li>
+                        <li>data — memory, state, commands</li>
+                        <li>server.py — Flask bridge</li>
+                    </ul>
+                </div>
+
+                <div class="doc-panel">
+                    <div class="doc-title">Conclusion</div>
+                    <p class="doc-text">
+                        ARK-II is not a toy. It is a system designed to feel like a
+                        true extension of the user — persistent, useful, and quiet.
+                        Built on open tools, running on Arch Linux, and designed to
+                        scale with the user's needs.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-icons">
+                <a class="icon-link" href="https://github.com/arkovyx/ark-ii/" target="_blank" title="GitHub">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.36-3.88-1.36-.52-1.32-1.28-1.67-1.28-1.67-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.19a11 11 0 0 1 5.8 0c2.2-1.5 3.17-1.19 3.17-1.19.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.41-2.7 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/>
+                    </svg>
+                </a>
+                <a class="icon-link" href="https://arkovyx.github.io/" target="_blank" title="Portfolio">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                </a>
+                <span class="icon-link" title="YouTube">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/>
+                    </svg>
+                </span>
+                <span class="icon-link" title="Instagram">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="2" width="20" height="20" rx="5"/>
+                        <path d="M16 11.4a4 4 0 1 1-7.9 1.2 4 4 0 0 1 7.9-1.2z"/>
+                        <line x1="17.5" y1="6.5" x2="17.5" y2="6.5"/>
+                    </svg>
+                </span>
+            </div>
+            <div class="footer-meta">v2.0.0 · Made by arkovyx · © 2026</div>
+        </footer>
+    </main>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
