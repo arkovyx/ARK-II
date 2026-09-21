@@ -1,6 +1,7 @@
 import time
 import os
 import threading
+from pathlib import Path
 
 from groq import Groq
 from dotenv import load_dotenv
@@ -15,16 +16,10 @@ from src.features.reminders import (
 from src.features.alarms import parse_time_expression, extract_message
 from src.features.news import get_top_headlines, search_news
 from src.features.search import web_search
-
-# TTS is optional
-try:
-    from src.features.tts import speak
-    TTS_ENABLED = True
-except ImportError:
-    TTS_ENABLED = False
-    def speak(text):
-        return "tts-disabled"
-
+from src.features.get import get_last_browser_url, get_active_window
+from src.features.download import download_video
+from src.features.git import clone_repo
+from src.features.summarize import get_active_content
 
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
@@ -37,16 +32,13 @@ def handle_command(command):
     if not command:
         return None
 
-    # Special commands
     if command == "clear":
         state.clear_history()
         return "🧹 cleared"
 
-    # Log user message
     state.append_history("user", command)
     state.set_status("thinking")
 
-    # Classify
     intent_data = classify(command)
     if not intent_data:
         intent_data = {"intent": "chat", "entities": {}}
@@ -142,6 +134,28 @@ def handle_command(command):
                 lines.append(f"  {icon} [{r['id']}] {r['message']} — in {when}")
             response = "\n".join(lines)
 
+    elif intent == "news":
+        cmd_lower = command.lower()
+        region = "india"
+        if "tech" in cmd_lower:
+            region = "tech"
+        elif "world" in cmd_lower:
+            region = "world"
+        elif "business" in cmd_lower:
+            region = "business"
+        elif "science" in cmd_lower:
+            region = "science"
+        elif "hacker" in cmd_lower or "hn" in cmd_lower:
+            region = "hackernews"
+        response = get_top_headlines(region=region)
+
+    elif intent == "news_search":
+        query = entities.get("query", "")
+        if query:
+            response = search_news(query)
+        else:
+            response = "What topic should I search news for?"
+
     elif intent == "web_search":
         query = entities.get("query", command)
         result, err = web_search(query)
@@ -150,7 +164,7 @@ def handle_command(command):
         else:
             try:
                 r = client.chat.completions.create(
-                    model="qwen/qwen3.8-27b",
+                    model="openai/gpt-oss-20b",
                     messages=[
                         {"role": "system", "content": (
                             "You are ARK. Use the web search results below to answer "
@@ -169,26 +183,71 @@ def handle_command(command):
             except Exception as e:
                 response = f"❌ LLM error: {e}"
 
-    elif intent == "news":
-        cmd_lower = command.lower()
-        region = "india"
-        if "tech" in cmd_lower:
-            region = "tech"
-        elif "world" in cmd_lower:
-            region = "world"
-        elif "business" in cmd_lower:
-            region = "business"
-        elif "science" in cmd_lower:
-            region = "science"
-        elif "hacker" in cmd_lower or "hn" in cmd_lower:
-            region = "hackernews"
-        response = get_top_headlines(region=region)
+    elif intent == "download_current":
+        url, title = get_last_browser_url()
+        if not url:
+            response = "No browser tab detected. Open a YouTube video first."
+        elif "youtube.com" not in url and "youtu.be" not in url:
+            response = f"Not a YouTube URL: {url[:60]}"
+        else:
+            response = download_video(url)
+
+    elif intent == "clone_current":
+        url, title = get_last_browser_url()
+        if not url:
+            response = "No browser tab detected. Open a GitHub repo first."
+        elif "github.com" not in url:
+            response = f"Not a GitHub URL: {url[:60]}"
+        else:
+            response = clone_repo(url)
+
+    elif intent == "summarize_current":
+        kind, data = get_active_content()
+        if kind == "none":
+            response = "Couldn't detect what you're looking at."
+        elif kind == "url":
+            try:
+                import requests
+                from bs4 import BeautifulSoup
+                r = requests.get(
+                    data["url"], timeout=8,
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                soup = BeautifulSoup(r.content, "html.parser")
+                for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                    tag.decompose()
+                text = soup.get_text(" ", strip=True)[:4000]
+                summary_r = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[
+                        {"role": "system", "content": "Summarize in 3-5 bullet points. Be concise."},
+                        {"role": "user", "content": text}
+                    ],
+                    temperature=0.3, max_tokens=500,
+                )
+                response = summary_r.choices[0].message.content
+            except Exception as e:
+                response = f"Couldn't fetch page: {e}"
+        elif kind == "file":
+            try:
+                content = Path(data["path"]).read_text()[:4000]
+                summary_r = client.chat.completions.create(
+                    model="openai/gpt-oss-20b",
+                    messages=[
+                        {"role": "system", "content": "Summarize this file in 3-5 bullet points."},
+                        {"role": "user", "content": content}
+                    ],
+                    temperature=0.3, max_tokens=500,
+                )
+                response = summary_r.choices[0].message.content
+            except Exception as e:
+                response = f"Couldn't read file: {e}"
 
     else:
         # Fallback: chat with AI
         try:
             r = client.chat.completions.create(
-                model="openai/gpt-oss-20b",
+                model="qwen/qwen3.8-27b",
                 messages=[
                     {"role": "system", "content": "You are ARK, a helpful AI assistant. Be concise but complete."},
                     {"role": "user", "content": command},
@@ -200,7 +259,6 @@ def handle_command(command):
         except Exception as e:
             response = f"API Error: {e}"
 
-    # Log response + reset status
     state.append_history("ark", response)
     state.set_status("idle")
 
@@ -208,7 +266,6 @@ def handle_command(command):
 
 
 def terminal_loop():
-    """Keyboard input in background thread."""
     while True:
         try:
             cmd = input("> ").strip()
@@ -224,7 +281,6 @@ def terminal_loop():
 
 
 def web_poll_loop():
-    """Poll commands.json for web-submitted commands."""
     while True:
         try:
             commands = read_new_commands()
@@ -235,7 +291,7 @@ def web_poll_loop():
                     print(f"🤖 {response}\n")
                     if TTS_ENABLED:
                         try:
-                            speak(response[:500])
+                            speak(response[:800])
                         except Exception:
                             pass
         except Exception as e:
