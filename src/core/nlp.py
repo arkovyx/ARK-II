@@ -13,7 +13,6 @@ client = Groq(api_key=api_key)
 # TIER 1: FAST PYTHON PRE-CHECK
 # ============================================
 
-# Writing tasks — always chat (no Tavily)
 WRITING_PATTERNS = [
     "write me", "write a", "write an", "write the",
     "make me a", "make me an",
@@ -24,7 +23,6 @@ WRITING_PATTERNS = [
     "cover letter", "resume",
 ]
 
-# Recency — always web_search
 RECENCY_PATTERNS = [
     "current", "currently", "latest", "newest", "recent", "recently",
     "right now", "today", "tonight", "this week", "this month", "this year",
@@ -35,23 +33,36 @@ RECENCY_PATTERNS = [
     "score", "match result", "winner of",
 ]
 
+# Active-window actions — always local
+ACTIVE_WINDOW_PATTERNS = [
+    "download this video", "download this", "save this video",
+    "download the video i'm watching", "download the video i am watching",
+    "clone this repo", "clone this repository", "clone this",
+    "git clone this",
+    "summarize this", "summarize this page", "summarize this file",
+    "what does this say", "tl dr this", "tldr this",
+]
+
 
 def force_intent(command):
-    """
-    Fast Python-side pre-check.
-    Returns intent string ('chat' | 'web_search') or None if unsure.
-    """
     lower = command.lower()
 
-    # Writing tasks win — even if they mention "latest"
+    # Active-window actions (highest priority)
+    if any(p in lower for p in ACTIVE_WINDOW_PATTERNS):
+        if "clone" in lower:
+            return "clone_current"
+        if "summar" in lower or "tl dr" in lower or "tldr" in lower or "what does this say" in lower:
+            return "summarize_current"
+        return "download_current"
+
+    # Writing tasks
     if any(w in lower for w in WRITING_PATTERNS):
         return "chat"
 
-    # Recency keywords
+    # Recency
     if any(r in lower for r in RECENCY_PATTERNS):
         return "web_search"
 
-    # Any near-future year (2024+)
     if re.search(r"\b(202[4-9]|203[0-9])\b", lower):
         return "web_search"
 
@@ -63,14 +74,14 @@ def force_intent(command):
 # ============================================
 
 def classify(command):
-    # ---- Tier 1: Fast pre-check ----
     forced = force_intent(command)
     if forced == "chat":
         return {"intent": "chat", "entities": {}}
     if forced == "web_search":
         return {"intent": "web_search", "entities": {"query": command}}
+    if forced in ("download_current", "clone_current", "summarize_current"):
+        return {"intent": forced, "entities": {}}
 
-    # ---- Tier 2: LLM classification ----
     system_prompt = """
     You are an intent classifier. Analyze what the user wants and return ONLY a JSON.
 
@@ -95,6 +106,9 @@ def classify(command):
     17. "news_search" - search news about topic
     18. "web_search" - current/factual info from web
     19. "chat" - writing, casual, timeless topics
+    20. "download_current" - download the video/page the user is looking at
+    21. "clone_current" - clone the GitHub repo the user is looking at
+    22. "summarize_current" - summarize what the user is looking at
 
     ===================================================
     THE #1 RULE — web_search vs chat
@@ -102,19 +116,8 @@ def classify(command):
 
     Ask yourself: "Could the answer be different today than a year ago?"
 
-    YES → web_search
-      - Current leaders, prices, stock, weather
-      - Latest versions, releases, updates
-      - Who won, who is, what happened
-      - Recent events, news, sports results
-      - Anything about the present moment
-
-    NO → chat
-      - Writing tasks (essay, letter, speech, email, poem, story)
-      - Definitions, explanations, how things work
-      - Math, coding, philosophy
-      - Casual conversation, jokes, advice
-      - Timeless knowledge
+    YES -> web_search
+    NO  -> chat
 
     EXAMPLES:
 
@@ -122,15 +125,31 @@ def classify(command):
     User: "who won the last fifa world cup"           -> web_search
     User: "latest iphone"                             -> web_search
     User: "current bitcoin price"                     -> web_search
-    User: "what's happening in tech today"            -> web_search
 
     User: "write me an essay on india"                -> chat
     User: "make me a speech for my hackathon"         -> chat
-    User: "draft an email to my boss"                 -> chat
     User: "explain how async works in python"         -> chat
     User: "what is quantum physics"                   -> chat
     User: "tell me a joke"                            -> chat
     User: "calculate 5+3"                             -> calculate
+
+    ===================================================
+    ACTIVE WINDOW RULES (download_current / clone_current / summarize_current)
+    ===================================================
+
+    Use these ONLY when the user refers to something they're LOOKING AT
+    (with words like "this", "this video", "this repo", "this page"):
+
+    User: "download this video"        -> download_current
+    User: "download this"              -> download_current
+    User: "save this video"            -> download_current
+    User: "clone this repo"            -> clone_current
+    User: "clone this repository"      -> clone_current
+    User: "summarize this"             -> summarize_current
+    User: "summarize this page"        -> summarize_current
+    User: "what does this say"         -> summarize_current
+
+    Do NOT use download_current if the user gives an explicit URL.
 
     ===================================================
     MEMORY RULES (remember / recall / forget)
@@ -158,12 +177,10 @@ def classify(command):
       "what is my name"          -> key="my name"
       "who am i"                 -> key="my name"
       "whoami"                   -> key="my name"
-      "what is my roll number"   -> key="my roll number"
 
     RULE 5: Multi-key recall -> join with " and ".
-      "what is my name and roll number" -> key="my name and roll number"
 
-    RULE 6: "remember this" without content -> chat (nothing to remember).
+    RULE 6: "remember this" without content -> chat.
 
     ===================================================
     RETURN FORMAT
@@ -175,7 +192,7 @@ def classify(command):
         "entities": {"key": "value"}
     }
 
-    Examples for entity extraction:
+    Examples:
 
     User: "remember my name is John" -> {"intent": "remember", "entities": {"key": "my name", "value": "John"}}
     User: "what is my name" -> {"intent": "recall", "entities": {"key": "my name"}}
@@ -185,6 +202,9 @@ def classify(command):
     User: "news about AI" -> {"intent": "news_search", "entities": {"query": "AI"}}
     User: "what's the news" -> {"intent": "news", "entities": {}}
     User: "search for rust async runtimes" -> {"intent": "web_search", "entities": {"query": "rust async runtimes"}}
+    User: "download this video" -> {"intent": "download_current", "entities": {}}
+    User: "clone this repo" -> {"intent": "clone_current", "entities": {}}
+    User: "summarize this" -> {"intent": "summarize_current", "entities": {}}
     """
 
     try:
