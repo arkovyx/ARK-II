@@ -46,7 +46,16 @@ def transcribe(path):
             language="en",
             response_format="text",
             temperature=0.0,
-            prompt="Commands for an AI assistant. Ignore background noise and non-speech sounds.",
+            prompt=(
+                "Commands for a personal AI assistant. "
+                "Common actions: clone this repository, git clone, "
+                "download this video, save this YouTube video, "
+                "summarize this page, summarize this file, "
+                "set a reminder, set an alarm, check the news. "
+                "Technical words: GitHub, git, repository, repo, "
+                "YouTube, video, browser, terminal, download, clone, "
+                "summary, article, webpage, url, link."
+            ),
         )
     return str(result).strip()
 
@@ -73,6 +82,17 @@ def main():
     # 2. Transcribe
     text = transcribe(TEMP_WAV)
     print(f"[voice_bar] Whisper heard: {text}")
+
+    from pathlib import Path
+    log = Path("/tmp/ark_stt_log.txt")
+    with open(log, "a") as f:
+        f.write(f"{text}\n")
+
+    if not text or len(text) < 3:
+        notify("ARK", "Nothing heard")
+        return
+    notify("YOU", text, 2000)
+    send_to_ark(text)
 
     # 3. Validate
     if not text or len(text) < 3:
