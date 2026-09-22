@@ -103,6 +103,30 @@ def force_intent(command):
     if any(p in lower for p in dev_phrases):
         return "setup_dev"
 
+        # ---- MEDIA / WATCH ----
+    watch_phrases = [
+        "let's watch", "lets watch", "play mr robot", "watch mr robot",
+        "start mr robot", "continue mr robot", "play the next episode",
+        "watch something", "let's watch something",
+    ]
+    if any(p in lower for p in watch_phrases):
+        return "watch_media"
+    # Also catch "watch X" / "play X"
+    if re.match(r"^(watch|play)\s+\w", lower) and "video" not in lower and "youtube" not in lower:
+        return "watch_media"
+
+        # ---- PROJECT SCAFFOLD ----
+    scaffold_phrases = [
+        "make a folder named", "make a folder called",
+        "create a folder named", "create a folder called",
+        "new project named", "new project called",
+        "scaffold a project", "setup a new project",
+        "set up a new project", "make a new project",
+        "create a new project",
+    ]
+    if any(p in lower for p in scaffold_phrases):
+        return "scaffold_project"
+
     has_clone = _fuzzy_find(lower, CLONE_WORDS, threshold=0.7)
     has_repo = _fuzzy_find(lower, REPO_WORDS, threshold=0.7)
     has_summar = _fuzzy_find(lower, SUMMARIZE_WORDS, threshold=0.75)
@@ -187,6 +211,11 @@ def classify(command):
     23. "setup_dev" - user wants to start working / set up their dev environment
     Examples: "setup my dev environment", "let's continue what I was working on",
               "start coding", "work on the project from yesterday"
+    24. "watch_media" - user wants to watch a show or movie from local files
+    Examples: "let's watch mr robot", "play mr robot", "watch the next episode"
+    25. "scaffold_project" - user wants a new Python project scaffolded
+    Examples: "make a folder named new project in my dev directory",
+              "create a new project called test", "scaffold a project"
 
     ===================================================
     THE #1 RULE — web_search vs chat
@@ -272,6 +301,8 @@ def classify(command):
     User: "news about AI" -> {"intent": "news_search", "entities": {"query": "AI"}}
     User: "what's the news" -> {"intent": "news", "entities": {}}
     User: "search for rust async runtimes" -> {"intent": "web_search", "entities": {"query": "rust async runtimes"}}
+    User: "let's watch mr robot" -> {"intent": "watch_media", "entities": {}}
+    User: "play mr robot" -> {"intent": "watch_media", "entities": {}}
     """
 
     try:
