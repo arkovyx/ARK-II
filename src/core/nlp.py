@@ -11,24 +11,22 @@ client = Groq(api_key=api_key)
 
 
 # ============================================
-# FUZZY MATCHING (catches Whisper mishearings)
+# FUZZY MATCHING (strict — no short-word noise)
 # ============================================
 
 def _word_matches(word, keyword, threshold=0.72):
-    """Check if a word is close to a keyword."""
     word = word.strip(".,!?;:'\"")
-    if not word:
+    if not word or len(word) < 4:
         return False
-    # Exact or substring
-    if keyword in word or word in keyword:
+    if keyword in word:
         return True
-    # Fuzzy
+    if abs(len(word) - len(keyword)) > 3:
+        return False
     ratio = difflib.SequenceMatcher(None, word, keyword).ratio()
     return ratio >= threshold
 
 
 def _fuzzy_find(text, keywords, threshold=0.72):
-    """Return True if any keyword fuzzy-matches a word in text."""
     words = text.split()
     for word in words:
         for kw in keywords:
@@ -61,64 +59,26 @@ RECENCY_PATTERNS = [
     "score", "match result", "winner of",
 ]
 
-# Words that indicate "clone" (with fuzzy variants)
-CLONE_WORDS = ["clone", "cloan", "clown", "clon", "cloe", "glone"]
-
-# Words that indicate "repository" (with fuzzy variants)
-REPO_WORDS = ["repo", "repository", "git", "github", "get hub", "git hub"]
-
-# Words that indicate "summarize"
-SUMMARIZE_WORDS = ["summarize", "summarise", "summary", "summrize", "summery"]
-
-# Words that indicate "download"
-DOWNLOAD_WORDS = ["download", "down load", "downloads"]
-
-# Words that indicate "video"
-VIDEO_WORDS = ["video", "youtube", "you tube", "vid"]
-
-# Demonstrative words that mean "the thing I'm looking at"
+CLONE_WORDS = ["clone", "cloan", "clown", "clon", "glone"]
+REPO_WORDS = ["repo", "repository", "git", "github"]
+SUMMARIZE_WORDS = ["summarize", "summarise", "summary", "summrize"]
+DOWNLOAD_WORDS = ["download", "downloads"]
+VIDEO_WORDS = ["video", "youtube", "vid"]
 DEMONSTRATIVES = ["this", "it", "the", "here", "current"]
 
 
 # ============================================
-# TIER 1: FAST PYTHON PRE-CHECK
+# TIER 1: FAST PYTHON PRE-CHECK (STRICT PRIORITY)
 # ============================================
 
 def force_intent(command):
     lower = command.lower()
 
-        # ---- DEV WORKSPACE ----
-    dev_phrases = [
-        "setup my dev", "set up my dev", "setup dev", "set up dev",
-        "start coding", "let's code", "lets code", "coding mode",
-        "setup my environment", "set up my environment",
-        "setup my workspace", "set up my workspace",
-        "continue what i was working", "continue where i left",
-        "work on the project i was working",
-        "work on the project i was", "yesterday's project",
-        "let's continue working", "lets continue working",
-        "dev environment", "development environment",
-        "dev mode", "developer mode",
-    ]
-    if any(p in lower for p in dev_phrases):
-        return "setup_dev"
-
-        # ---- MEDIA / WATCH ----
-    watch_phrases = [
-        "let's watch", "lets watch", "play mr robot", "watch mr robot",
-        "start mr robot", "continue mr robot", "play the next episode",
-        "watch something", "let's watch something",
-    ]
-    if any(p in lower for p in watch_phrases):
-        return "watch_media"
-    # Also catch "watch X" / "play X"
-    if re.match(r"^(watch|play)\s+\w", lower) and "video" not in lower and "youtube" not in lower:
-        return "watch_media"
-
-        # ---- PROJECT SCAFFOLD ----
+    # ---- 1. PROJECT SCAFFOLD (highest priority) ----
     scaffold_phrases = [
         "make a folder named", "make a folder called",
         "create a folder named", "create a folder called",
+        "make a folder", "create a folder",
         "new project named", "new project called",
         "scaffold a project", "setup a new project",
         "set up a new project", "make a new project",
@@ -127,38 +87,68 @@ def force_intent(command):
     if any(p in lower for p in scaffold_phrases):
         return "scaffold_project"
 
+    # ---- 2. DEV WORKSPACE (only specific phrases) ----
+    dev_phrases = [
+        "setup my dev environment", "set up my dev environment",
+        "setup dev environment", "set up dev environment",
+        "start coding", "let's code", "lets code", "coding mode",
+        "setup my workspace", "set up my workspace",
+        "continue what i was working", "continue where i left",
+        "work on the project i was working",
+        "yesterday's project", "lets continue working",
+        "let's continue working",
+        "dev mode", "developer mode", "dev environment",
+    ]
+    if any(p in lower for p in dev_phrases):
+        return "setup_dev"
+
+    # ---- 3. CLONE ----
     has_clone = _fuzzy_find(lower, CLONE_WORDS, threshold=0.7)
     has_repo = _fuzzy_find(lower, REPO_WORDS, threshold=0.7)
-    has_summar = _fuzzy_find(lower, SUMMARIZE_WORDS, threshold=0.75)
-    has_download = _fuzzy_find(lower, DOWNLOAD_WORDS, threshold=0.75)
-    has_video = _fuzzy_find(lower, VIDEO_WORDS, threshold=0.7)
     has_this = any(w in lower.split() for w in DEMONSTRATIVES)
-
-    # ---- CLONE (highest priority) ----
-    # "clone this repo", "clown this git", "clone github", "git clone"
     if has_clone and (has_repo or has_this):
         return "clone_current"
-    # "clone this" alone
-    if has_clone and has_this:
-        return "clone_current"
 
-    # ---- SUMMARIZE ----
+    # ---- 4. SUMMARIZE ----
+    has_summar = _fuzzy_find(lower, SUMMARIZE_WORDS, threshold=0.75)
     if has_summar and (has_this or "page" in lower or "file" in lower or "article" in lower):
         return "summarize_current"
     if "tldr" in lower or "tl dr" in lower:
         return "summarize_current"
 
-    # ---- DOWNLOAD ----
+    # ---- 5. DOWNLOAD ----
+    has_download = _fuzzy_find(lower, DOWNLOAD_WORDS, threshold=0.75)
+    has_video = _fuzzy_find(lower, VIDEO_WORDS, threshold=0.7)
     if has_download and (has_video or has_this):
         return "download_current"
-    if has_video and has_this and "play" not in lower:
-        return "download_current"
 
-    # ---- WRITING ----
+    # ---- 6. WATCH MEDIA ----
+    watch_phrases = [
+        "let's watch", "lets watch", "play mr robot", "watch mr robot",
+        "start mr robot", "continue mr robot", "play the next episode",
+        "watch something", "let's watch something",
+    ]
+    if any(p in lower for p in watch_phrases):
+        return "watch_media"
+    if re.match(r"^(watch|play)\s+\w", lower) and "video" not in lower and "youtube" not in lower:
+        return "watch_media"
+
+    # ---- 7. ACTIVITY REPORT ----
+    activity_phrases = [
+        "what was i working on", "what have i been working on",
+        "what am i working on", "what was i doing",
+        "what have i been doing", "what am i doing",
+        "activity report", "my activity", "show activity",
+        "recent activity", "what did i do today",
+    ]
+    if any(p in lower for p in activity_phrases):
+        return "activity_report"
+
+    # ---- 8. WRITING ----
     if any(w in lower for w in WRITING_PATTERNS):
         return "chat"
 
-    # ---- RECENCY ----
+    # ---- 9. RECENCY ----
     if any(r in lower for r in RECENCY_PATTERNS):
         return "web_search"
 
@@ -178,7 +168,10 @@ def classify(command):
         return {"intent": "chat", "entities": {}}
     if forced == "web_search":
         return {"intent": "web_search", "entities": {"query": command}}
-    if forced in ("download_current", "clone_current", "summarize_current"):
+    if forced in (
+        "download_current", "clone_current", "summarize_current",
+        "scaffold_project", "setup_dev", "watch_media", "activity_report",
+    ):
         return {"intent": forced, "entities": {}}
 
     system_prompt = """
@@ -208,14 +201,8 @@ def classify(command):
     20. "download_current" - download the video the user is looking at
     21. "clone_current" - clone the GitHub repo the user is looking at
     22. "summarize_current" - summarize what the user is looking at
-    23. "setup_dev" - user wants to start working / set up their dev environment
-    Examples: "setup my dev environment", "let's continue what I was working on",
-              "start coding", "work on the project from yesterday"
-    24. "watch_media" - user wants to watch a show or movie from local files
-    Examples: "let's watch mr robot", "play mr robot", "watch the next episode"
-    25. "scaffold_project" - user wants a new Python project scaffolded
-    Examples: "make a folder named new project in my dev directory",
-              "create a new project called test", "scaffold a project"
+    23. "setup_dev" - user wants to start working / set up dev environment
+    24. "scaffold_project" - user wants a new Python project scaffolded
 
     ===================================================
     THE #1 RULE — web_search vs chat
@@ -229,14 +216,9 @@ def classify(command):
     EXAMPLES:
 
     User: "who is the current president of france"    -> web_search
-    User: "who won the last fifa world cup"           -> web_search
     User: "latest iphone"                             -> web_search
-    User: "current bitcoin price"                     -> web_search
-
     User: "write me an essay on india"                -> chat
-    User: "make me a speech for my hackathon"         -> chat
     User: "explain how async works in python"         -> chat
-    User: "what is quantum physics"                   -> chat
     User: "tell me a joke"                            -> chat
     User: "calculate 5+3"                             -> calculate
 
@@ -244,29 +226,31 @@ def classify(command):
     ACTIVE WINDOW RULES
     ===================================================
 
-    Use ONLY when user refers to something they're LOOKING AT
-    (with "this", "the video", "this repo", "this page"):
-
     User: "download this video"        -> download_current
-    User: "save this video"            -> download_current
     User: "clone this repo"            -> clone_current
-    User: "clone this repository"      -> clone_current
-    User: "clone the github repo"      -> clone_current
-    User: "summarize this"             -> summarize_current
     User: "summarize this page"        -> summarize_current
-    User: "what does this say"         -> summarize_current
 
-    Do NOT use download_current if user gives an explicit URL.
+    ===================================================
+    DEV WORKSPACE (setup_dev)
+    ===================================================
+
+    User: "setup my dev environment"   -> setup_dev
+    User: "let's continue what I was working on" -> setup_dev
+    User: "start coding"               -> setup_dev
+
+    ===================================================
+    PROJECT SCAFFOLD (scaffold_project)
+    ===================================================
+
+    User: "make a folder named X in my dev directory and install Y" -> scaffold_project
+    User: "create a new project called test" -> scaffold_project
 
     ===================================================
     MEMORY RULES
     ===================================================
 
     RULE 1: Keys must be CONSISTENT.
-    GOOD keys:
-      "my name"        (NOT "name")
-      "my roll number" (NOT "roll number")
-      "my project"     (NOT "project")
+      "my name" (NOT "name"), "my roll number" (NOT "roll number")
 
     RULE 2: If user says "my X", key MUST be "my X".
 
@@ -278,8 +262,6 @@ def classify(command):
       "who am i"        -> key="my name"
 
     RULE 5: Multi-key -> join with " and ".
-
-    RULE 6: "remember this" without content -> chat.
 
     ===================================================
     RETURN FORMAT
@@ -301,8 +283,6 @@ def classify(command):
     User: "news about AI" -> {"intent": "news_search", "entities": {"query": "AI"}}
     User: "what's the news" -> {"intent": "news", "entities": {}}
     User: "search for rust async runtimes" -> {"intent": "web_search", "entities": {"query": "rust async runtimes"}}
-    User: "let's watch mr robot" -> {"intent": "watch_media", "entities": {}}
-    User: "play mr robot" -> {"intent": "watch_media", "entities": {}}
     """
 
     try:
