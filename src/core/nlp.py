@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import difflib
 from dotenv import load_dotenv
 from groq import Groq
 
@@ -10,7 +11,34 @@ client = Groq(api_key=api_key)
 
 
 # ============================================
-# TIER 1: FAST PYTHON PRE-CHECK
+# FUZZY MATCHING (catches Whisper mishearings)
+# ============================================
+
+def _word_matches(word, keyword, threshold=0.72):
+    """Check if a word is close to a keyword."""
+    word = word.strip(".,!?;:'\"")
+    if not word:
+        return False
+    # Exact or substring
+    if keyword in word or word in keyword:
+        return True
+    # Fuzzy
+    ratio = difflib.SequenceMatcher(None, word, keyword).ratio()
+    return ratio >= threshold
+
+
+def _fuzzy_find(text, keywords, threshold=0.72):
+    """Return True if any keyword fuzzy-matches a word in text."""
+    words = text.split()
+    for word in words:
+        for kw in keywords:
+            if _word_matches(word, kw, threshold):
+                return True
+    return False
+
+
+# ============================================
+# KEYWORD SETS
 # ============================================
 
 WRITING_PATTERNS = [
@@ -33,33 +61,80 @@ RECENCY_PATTERNS = [
     "score", "match result", "winner of",
 ]
 
-# Active-window actions — always local
-ACTIVE_WINDOW_PATTERNS = [
-    "download this video", "download this", "save this video",
-    "download the video i'm watching", "download the video i am watching",
-    "clone this repo", "clone this repository", "clone this",
-    "git clone this",
-    "summarize this", "summarize this page", "summarize this file",
-    "what does this say", "tl dr this", "tldr this",
-]
+# Words that indicate "clone" (with fuzzy variants)
+CLONE_WORDS = ["clone", "cloan", "clown", "clon", "cloe", "glone"]
 
+# Words that indicate "repository" (with fuzzy variants)
+REPO_WORDS = ["repo", "repository", "git", "github", "get hub", "git hub"]
+
+# Words that indicate "summarize"
+SUMMARIZE_WORDS = ["summarize", "summarise", "summary", "summrize", "summery"]
+
+# Words that indicate "download"
+DOWNLOAD_WORDS = ["download", "down load", "downloads"]
+
+# Words that indicate "video"
+VIDEO_WORDS = ["video", "youtube", "you tube", "vid"]
+
+# Demonstrative words that mean "the thing I'm looking at"
+DEMONSTRATIVES = ["this", "it", "the", "here", "current"]
+
+
+# ============================================
+# TIER 1: FAST PYTHON PRE-CHECK
+# ============================================
 
 def force_intent(command):
     lower = command.lower()
 
-    # Active-window actions (highest priority)
-    if any(p in lower for p in ACTIVE_WINDOW_PATTERNS):
-        if "clone" in lower:
-            return "clone_current"
-        if "summar" in lower or "tl dr" in lower or "tldr" in lower or "what does this say" in lower:
-            return "summarize_current"
+        # ---- DEV WORKSPACE ----
+    dev_phrases = [
+        "setup my dev", "set up my dev", "setup dev", "set up dev",
+        "start coding", "let's code", "lets code", "coding mode",
+        "setup my environment", "set up my environment",
+        "setup my workspace", "set up my workspace",
+        "continue what i was working", "continue where i left",
+        "work on the project i was working",
+        "work on the project i was", "yesterday's project",
+        "let's continue working", "lets continue working",
+        "dev environment", "development environment",
+        "dev mode", "developer mode",
+    ]
+    if any(p in lower for p in dev_phrases):
+        return "setup_dev"
+
+    has_clone = _fuzzy_find(lower, CLONE_WORDS, threshold=0.7)
+    has_repo = _fuzzy_find(lower, REPO_WORDS, threshold=0.7)
+    has_summar = _fuzzy_find(lower, SUMMARIZE_WORDS, threshold=0.75)
+    has_download = _fuzzy_find(lower, DOWNLOAD_WORDS, threshold=0.75)
+    has_video = _fuzzy_find(lower, VIDEO_WORDS, threshold=0.7)
+    has_this = any(w in lower.split() for w in DEMONSTRATIVES)
+
+    # ---- CLONE (highest priority) ----
+    # "clone this repo", "clown this git", "clone github", "git clone"
+    if has_clone and (has_repo or has_this):
+        return "clone_current"
+    # "clone this" alone
+    if has_clone and has_this:
+        return "clone_current"
+
+    # ---- SUMMARIZE ----
+    if has_summar and (has_this or "page" in lower or "file" in lower or "article" in lower):
+        return "summarize_current"
+    if "tldr" in lower or "tl dr" in lower:
+        return "summarize_current"
+
+    # ---- DOWNLOAD ----
+    if has_download and (has_video or has_this):
+        return "download_current"
+    if has_video and has_this and "play" not in lower:
         return "download_current"
 
-    # Writing tasks
+    # ---- WRITING ----
     if any(w in lower for w in WRITING_PATTERNS):
         return "chat"
 
-    # Recency
+    # ---- RECENCY ----
     if any(r in lower for r in RECENCY_PATTERNS):
         return "web_search"
 
@@ -106,15 +181,18 @@ def classify(command):
     17. "news_search" - search news about topic
     18. "web_search" - current/factual info from web
     19. "chat" - writing, casual, timeless topics
-    20. "download_current" - download the video/page the user is looking at
+    20. "download_current" - download the video the user is looking at
     21. "clone_current" - clone the GitHub repo the user is looking at
     22. "summarize_current" - summarize what the user is looking at
+    23. "setup_dev" - user wants to start working / set up their dev environment
+    Examples: "setup my dev environment", "let's continue what I was working on",
+              "start coding", "work on the project from yesterday"
 
     ===================================================
     THE #1 RULE — web_search vs chat
     ===================================================
 
-    Ask yourself: "Could the answer be different today than a year ago?"
+    Ask: "Could the answer be different today than a year ago?"
 
     YES -> web_search
     NO  -> chat
@@ -134,51 +212,43 @@ def classify(command):
     User: "calculate 5+3"                             -> calculate
 
     ===================================================
-    ACTIVE WINDOW RULES (download_current / clone_current / summarize_current)
+    ACTIVE WINDOW RULES
     ===================================================
 
-    Use these ONLY when the user refers to something they're LOOKING AT
-    (with words like "this", "this video", "this repo", "this page"):
+    Use ONLY when user refers to something they're LOOKING AT
+    (with "this", "the video", "this repo", "this page"):
 
     User: "download this video"        -> download_current
-    User: "download this"              -> download_current
     User: "save this video"            -> download_current
     User: "clone this repo"            -> clone_current
     User: "clone this repository"      -> clone_current
+    User: "clone the github repo"      -> clone_current
     User: "summarize this"             -> summarize_current
     User: "summarize this page"        -> summarize_current
     User: "what does this say"         -> summarize_current
 
-    Do NOT use download_current if the user gives an explicit URL.
+    Do NOT use download_current if user gives an explicit URL.
 
     ===================================================
-    MEMORY RULES (remember / recall / forget)
+    MEMORY RULES
     ===================================================
 
     RULE 1: Keys must be CONSISTENT.
-    Use the SHORTEST form that identifies the fact.
-
     GOOD keys:
       "my name"        (NOT "name")
       "my roll number" (NOT "roll number")
       "my project"     (NOT "project")
-      "my address"     (NOT "address")
-      "my age"         (NOT "age")
-      "my email"       (NOT "email")
 
-    RULE 2: If user says "my X", the key MUST be "my X".
+    RULE 2: If user says "my X", key MUST be "my X".
 
     RULE 3: "remember" -> extract BOTH key and value.
-      "remember my name is John"        -> key="my name", value="John"
-      "my name is John, remember this"  -> key="my name", value="John"
-      "remember I use Neovim"           -> key="editor", value="Neovim"
+      "remember my name is John" -> key="my name", value="John"
 
     RULE 4: "recall" -> extract ONLY the key.
-      "what is my name"          -> key="my name"
-      "who am i"                 -> key="my name"
-      "whoami"                   -> key="my name"
+      "what is my name" -> key="my name"
+      "who am i"        -> key="my name"
 
-    RULE 5: Multi-key recall -> join with " and ".
+    RULE 5: Multi-key -> join with " and ".
 
     RULE 6: "remember this" without content -> chat.
 
@@ -202,9 +272,6 @@ def classify(command):
     User: "news about AI" -> {"intent": "news_search", "entities": {"query": "AI"}}
     User: "what's the news" -> {"intent": "news", "entities": {}}
     User: "search for rust async runtimes" -> {"intent": "web_search", "entities": {"query": "rust async runtimes"}}
-    User: "download this video" -> {"intent": "download_current", "entities": {}}
-    User: "clone this repo" -> {"intent": "clone_current", "entities": {}}
-    User: "summarize this" -> {"intent": "summarize_current", "entities": {}}
     """
 
     try:
