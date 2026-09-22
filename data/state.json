@@ -1,1 +1,27 @@
-{}
+{
+  "status": "idle",
+  "history": [
+    {
+      "role": "ark",
+      "content": "ARK online. Type, speak, or use the web UI.",
+      "time": "10:02"
+    },
+    {
+      "role": "user",
+      "content": "let's continue working on my project",
+      "time": "10:02"
+    },
+    {
+      "role": "ark",
+      "content": "\ud83d\ude80 Dev environment launched at 10:02 AM",
+      "time": "10:02"
+    }
+  ],
+  "tts": {
+    "playing": false,
+    "text": "",
+    "started_at": 0
+  },
+  "started_at": 1790051543.4918587,
+  "updated_at": "2026-09-22T10:02:46"
+}
