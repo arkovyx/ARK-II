@@ -22,6 +22,8 @@ from src.features.git import clone_repo
 from src.features.summarize import get_active_content
 
 from src.features.workspace import setup_dev_environment
+from src.features.media import watch_show
+from src.features.scaffold import scaffold_project
 
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
@@ -259,6 +261,12 @@ def handle_command(command):
     elif intent == "setup_dev":
         response = setup_dev_environment()
 
+    elif intent == "watch_media":
+        response = watch_show(command)
+
+    elif intent == "scaffold_project":
+        response = scaffold_project(command)
+
     else:
         # Fallback: chat with AI
         try:
@@ -305,11 +313,6 @@ def web_poll_loop():
                 response = handle_command(cmd)
                 if response:
                     print(f"🤖 {response}\n")
-                    if TTS_ENABLED:
-                        try:
-                            speak(response[:800])
-                        except Exception:
-                            pass
         except Exception as e:
             print(f"command_reader error: {e}")
         time.sleep(0.5)
