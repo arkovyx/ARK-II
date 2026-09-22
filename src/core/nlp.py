@@ -78,7 +78,6 @@ def force_intent(command):
     scaffold_phrases = [
         "make a folder named", "make a folder called",
         "create a folder named", "create a folder called",
-        "make a folder", "create a folder",
         "new project named", "new project called",
         "scaffold a project", "setup a new project",
         "set up a new project", "make a new project",
@@ -87,7 +86,27 @@ def force_intent(command):
     if any(p in lower for p in scaffold_phrases):
         return "scaffold_project"
 
-    # ---- 2. DEV WORKSPACE (only specific phrases) ----
+    # ---- 2. READ ERROR (screen analysis) ----
+    has_read_word = any(w in lower for w in [
+        "read this", "read the", "read error", "read screen", "fix it", "anazlyze it", "analyse it",
+        "what is this error", "what's this error", "whats this error",
+        "explain this error", "explain the error",
+        "fix this error", "fix the error", "fix error",
+        "solve this error", "resolve this error",
+        "analyze this error", "analyse this error",
+        "diagnose this error", "diagnose the error",
+    ])
+    has_error_word = any(w in lower for w in [
+        "error", "errors", "exception", "traceback",
+        "stack trace", "stacktrace", "bug",
+    ])
+    has_screen_word = any(w in lower for w in [
+        "screen", "this page", "this window",
+    ])
+    if has_read_word and (has_error_word or has_screen_word):
+        return "read_error"
+
+    # ---- 3. DEV WORKSPACE ----
     dev_phrases = [
         "setup my dev environment", "set up my dev environment",
         "setup dev environment", "set up dev environment",
@@ -102,27 +121,27 @@ def force_intent(command):
     if any(p in lower for p in dev_phrases):
         return "setup_dev"
 
-    # ---- 3. CLONE ----
+    # ---- 4. CLONE ----
     has_clone = _fuzzy_find(lower, CLONE_WORDS, threshold=0.7)
     has_repo = _fuzzy_find(lower, REPO_WORDS, threshold=0.7)
     has_this = any(w in lower.split() for w in DEMONSTRATIVES)
     if has_clone and (has_repo or has_this):
         return "clone_current"
 
-    # ---- 4. SUMMARIZE ----
+    # ---- 5. SUMMARIZE ----
     has_summar = _fuzzy_find(lower, SUMMARIZE_WORDS, threshold=0.75)
     if has_summar and (has_this or "page" in lower or "file" in lower or "article" in lower):
         return "summarize_current"
     if "tldr" in lower or "tl dr" in lower:
         return "summarize_current"
 
-    # ---- 5. DOWNLOAD ----
+    # ---- 6. DOWNLOAD ----
     has_download = _fuzzy_find(lower, DOWNLOAD_WORDS, threshold=0.75)
     has_video = _fuzzy_find(lower, VIDEO_WORDS, threshold=0.7)
     if has_download and (has_video or has_this):
         return "download_current"
 
-    # ---- 6. WATCH MEDIA ----
+    # ---- 7. WATCH MEDIA ----
     watch_phrases = [
         "let's watch", "lets watch", "play mr robot", "watch mr robot",
         "start mr robot", "continue mr robot", "play the next episode",
@@ -133,7 +152,7 @@ def force_intent(command):
     if re.match(r"^(watch|play)\s+\w", lower) and "video" not in lower and "youtube" not in lower:
         return "watch_media"
 
-    # ---- 7. ACTIVITY REPORT ----
+    # ---- 8. ACTIVITY REPORT ----
     activity_phrases = [
         "what was i working on", "what have i been working on",
         "what am i working on", "what was i doing",
@@ -144,11 +163,11 @@ def force_intent(command):
     if any(p in lower for p in activity_phrases):
         return "activity_report"
 
-    # ---- 8. WRITING ----
+    # ---- 9. WRITING ----
     if any(w in lower for w in WRITING_PATTERNS):
         return "chat"
 
-    # ---- 9. RECENCY ----
+    # ---- 10. RECENCY ----
     if any(r in lower for r in RECENCY_PATTERNS):
         return "web_search"
 
@@ -156,7 +175,6 @@ def force_intent(command):
         return "web_search"
 
     return None
-
 
 # ============================================
 # TIER 2: LLM CLASSIFIER
