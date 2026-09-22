@@ -24,6 +24,7 @@ from src.features.summarize import get_active_content
 from src.features.workspace import setup_dev_environment
 from src.features.media import watch_show
 from src.features.scaffold import scaffold_project
+from src.features.error_fix import read_and_fix_error
 
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
@@ -266,6 +267,9 @@ def handle_command(command):
 
     elif intent == "scaffold_project":
         response = scaffold_project(command)
+
+    elif intent == "read_error":
+        response = read_and_fix_error()
 
     else:
         # Fallback: chat with AI
