@@ -1,3 +1,4 @@
+import time
 import subprocess
 import json
 import sqlite3
@@ -50,9 +51,24 @@ def _find_firefox_places():
     return None
 
 
-def get_last_browser_url():
+# In src/features/get.py, REPLACE the get_last_browser_url function with this:
+
+# Domains that ARK should ignore (they're local/UI pages)
+IGNORED_URL_PARTS = [
+    "127.0.0.1", "localhost", "0.0.0.0",
+    "about:", "file:", "chrome:", "place:",
+    "duckduckgo.com/?q=", "google.com/search",
+]
+
+
+def get_last_browser_url(domain_filter=None, max_age_minutes=30):
     """
-    Read the most recent URL from Firefox/LibreWolf history.
+    Read the most recently visited URL from Firefox/LibreWolf history.
+
+    Args:
+        domain_filter: if set (e.g. "github.com"), only returns URLs containing this.
+        max_age_minutes: only consider visits within this many minutes.
+
     Returns (url, title) or (None, None).
     """
     db = _find_firefox_places()
@@ -63,7 +79,6 @@ def get_last_browser_url():
         # Copy the DB — Firefox locks it while running
         tmp = "/tmp/ark_places.sqlite"
         shutil.copy2(db, tmp)
-        # Also copy WAL and SHM if they exist (write-ahead log)
         for suffix in ("-wal", "-shm"):
             src = db + suffix
             if Path(src).exists():
@@ -74,22 +89,44 @@ def get_last_browser_url():
 
         conn = sqlite3.connect(tmp)
         cur = conn.cursor()
+
+        # Look at last 100 visits, most recent first
         cur.execute("""
-            SELECT url, title FROM moz_places
+            SELECT url, title, last_visit_date
+            FROM moz_places
             WHERE hidden = 0
+              AND last_visit_date IS NOT NULL
               AND url NOT LIKE 'about:%'
               AND url NOT LIKE 'file:%'
               AND url NOT LIKE 'chrome:%'
               AND url NOT LIKE 'place:%'
             ORDER BY last_visit_date DESC
-            LIMIT 1
+            LIMIT 100
         """)
-        row = cur.fetchone()
+        rows = cur.fetchall()
         conn.close()
-        if row:
-            return row[0], row[1]
+
+        # Filter
+        for url, title, visit_us in rows:
+            # Skip ignored patterns
+            if any(bad in url for bad in IGNORED_URL_PARTS):
+                continue
+
+            # Apply domain filter if requested
+            if domain_filter and domain_filter not in url:
+                continue
+
+            # Age check (visit_us is microseconds since epoch)
+            if max_age_minutes:
+                age_sec = (time.time() - visit_us / 1_000_000)
+                if age_sec > max_age_minutes * 60:
+                    continue
+
+            return url, title
+
         return None, None
-    except Exception:
+    except Exception as e:
+        print(f"[get] browser history error: {e}")
         return None, None
 
 
