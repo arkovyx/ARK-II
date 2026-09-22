@@ -21,6 +21,8 @@ from src.features.download import download_video
 from src.features.git import clone_repo
 from src.features.summarize import get_active_content
 
+from src.features.workspace import setup_dev_environment
+
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=api_key)
@@ -184,7 +186,15 @@ def handle_command(command):
                 response = f"❌ LLM error: {e}"
 
     elif intent == "download_current":
-        url, title = get_last_browser_url()
+        url, title = get_last_browser_url(
+            domain_filter="youtube.com",
+            max_age_minutes=30,
+        )
+        if not url:
+            url, title = get_last_browser_url(
+                domain_filter="youtu.be",
+                max_age_minutes=30,
+            )
         if not url:
             response = "No browser tab detected. Open a YouTube video first."
         elif "youtube.com" not in url and "youtu.be" not in url:
@@ -193,7 +203,10 @@ def handle_command(command):
             response = download_video(url)
 
     elif intent == "clone_current":
-        url, title = get_last_browser_url()
+        url, title = get_last_browser_url(
+            domain_filter="github.com",
+            max_age_minutes=60,
+        )
         if not url:
             response = "No browser tab detected. Open a GitHub repo first."
         elif "github.com" not in url:
@@ -242,6 +255,9 @@ def handle_command(command):
                 response = summary_r.choices[0].message.content
             except Exception as e:
                 response = f"Couldn't read file: {e}"
+
+    elif intent == "setup_dev":
+        response = setup_dev_environment()
 
     else:
         # Fallback: chat with AI
