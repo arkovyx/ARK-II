@@ -1,6 +1,8 @@
 import os
+import sys
 import json
 import subprocess
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from groq import Groq
@@ -13,7 +15,13 @@ load_dotenv()
 SAMPLE_RATE = 48000
 RECORD_SECONDS = 5
 TEMP_WAV = Path("/tmp/ark_voice.wav")
+LOG_FILE = Path("/tmp/ark_stt_log.txt")
+LOCK_FILE = Path("/tmp/ark_voice.lock")
+LAST_RUN_FILE = Path("/tmp/ark_voice_last.txt")
 COMMANDS_FILE = Path(__file__).resolve().parent.parent / "data" / "commands.json"
+
+# Minimum time between triggers (seconds) — prevents double-fire
+MIN_INTERVAL = 2.0
 
 
 def notify(title, message, timeout_ms=1500):
@@ -21,6 +29,41 @@ def notify(title, message, timeout_ms=1500):
         ["notify-send", "-t", str(timeout_ms), title, message],
         check=False,
     )
+
+
+def acquire_lock():
+    """Return True if we got the lock, False if another instance is running."""
+    if LOCK_FILE.exists():
+        try:
+            pid = int(LOCK_FILE.read_text().strip())
+            # Check if process is alive
+            os.kill(pid, 0)
+            return False   # still running
+        except (ValueError, OSError):
+            pass           # stale, take over
+    LOCK_FILE.write_text(str(os.getpid()))
+    return True
+
+
+def release_lock():
+    try:
+        LOCK_FILE.unlink()
+    except Exception:
+        pass
+
+
+def check_rate_limit():
+    """Prevent double-fires within MIN_INTERVAL seconds."""
+    now = time.time()
+    if LAST_RUN_FILE.exists():
+        try:
+            last = float(LAST_RUN_FILE.read_text().strip())
+            if now - last < MIN_INTERVAL:
+                return False   # too soon — exit silently
+        except Exception:
+            pass
+    LAST_RUN_FILE.write_text(str(now))
+    return True
 
 
 def record_audio():
@@ -48,20 +91,22 @@ def transcribe(path):
             temperature=0.0,
             prompt=(
                 "Commands for a personal AI assistant. "
-                "Common actions: clone this repository, git clone, "
+                "Common commands: clone this repository, git clone, "
                 "download this video, save this YouTube video, "
-                "summarize this page, summarize this file, "
-                "set a reminder, set an alarm, check the news. "
+                "summarize this page, analyze this page, "
+                "set a reminder, set an alarm, check the news, "
+                "setup my dev environment, let's watch mr robot. "
                 "Technical words: GitHub, git, repository, repo, "
                 "YouTube, video, browser, terminal, download, clone, "
-                "summary, article, webpage, url, link."
+                "summary, article, webpage. "
+                "Ignore silence and background noise — do not transcribe "
+                "phrases like 'thanks for watching' or 'please subscribe'."
             ),
         )
     return str(result).strip()
 
 
 def send_to_ark(text):
-    """Write to commands.json — ARK's web_poll_loop picks it up."""
     cmds = []
     if COMMANDS_FILE.exists() and COMMANDS_FILE.stat().st_size > 0:
         try:
@@ -76,32 +121,44 @@ def send_to_ark(text):
 
 
 def main():
-    # 1. Record
-    record_audio()
-
-    # 2. Transcribe
-    text = transcribe(TEMP_WAV)
-    print(f"[voice_bar] Whisper heard: {text}")
-
-    from pathlib import Path
-    log = Path("/tmp/ark_stt_log.txt")
-    with open(log, "a") as f:
-        f.write(f"{text}\n")
-
-    if not text or len(text) < 3:
-        notify("ARK", "Nothing heard")
-        return
-    notify("YOU", text, 2000)
-    send_to_ark(text)
-
-    # 3. Validate
-    if not text or len(text) < 3:
-        notify("🤷 ARK", "Nothing heard")
+    # --- Guard 1: rate limit ---
+    if not check_rate_limit():
         return
 
-    # 4. Send
-    notify("👤 You", text, 2000)
-    send_to_ark(text)
+    # --- Guard 2: lock (only one instance) ---
+    if not acquire_lock():
+        return
+
+    try:
+        record_audio()
+        text = transcribe(TEMP_WAV)
+        print(f"[voice_bar] Whisper heard: {text}")
+
+        try:
+            with open(LOG_FILE, "a") as f:
+                f.write(text + "\n")
+        except Exception:
+            pass
+
+        # Filter hallucinations
+        hallucinations = {
+            "thanks for watching", "thank you for watching",
+            "please subscribe", "like and subscribe",
+            "subscribe to my channel", "see you next time",
+            "bye bye", "you", "thank you", "thanks",
+            "thank you.", "thanks.", "bye.", "you.",
+            ".",
+        }
+        cleaned = text.lower().strip().strip(".!?,")
+        if cleaned in hallucinations or len(text) < 3:
+            notify("🤷 ARK", "Nothing meaningful heard")
+            return
+
+        notify("👤 You", text, 2000)
+        send_to_ark(text)
+
+    finally:
+        release_lock()
 
 
 if __name__ == "__main__":
