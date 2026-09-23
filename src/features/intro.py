@@ -5,7 +5,6 @@ INTRO_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "ark_intro
 
 
 def play_intro():
-    """Play the pre-recorded ARK intro."""
     if not INTRO_FILE.exists():
         return f"❌ Intro not found: {INTRO_FILE}. Run scripts/make_intro.py first."
 
