@@ -11,7 +11,7 @@ client = Groq(api_key=api_key)
 
 
 # ============================================
-# FUZZY MATCHING (strict — no short-word noise)
+# FUZZY MATCHING
 # ============================================
 
 def _word_matches(word, keyword, threshold=0.72):
@@ -72,9 +72,20 @@ DEMONSTRATIVES = ["this", "it", "the", "here", "current"]
 # ============================================
 
 def force_intent(command):
-    lower = command.lower()
+    lower = command.lower().strip()
 
-    # ---- 1. PROJECT SCAFFOLD (highest priority) ----
+    # ---- 0. INTRO (absolute highest priority) ----
+    intro_phrases = [
+        "introduce yourself", "introduce you",
+        "who are you", "what are you",
+        "tell me about yourself", "play the intro",
+        "play intro", "ark introduce",
+        "what is ark", "what's ark", "whats ark",
+    ]
+    if any(p in lower for p in intro_phrases):
+        return "introduce"
+
+    # ---- 1. PROJECT SCAFFOLD ----
     scaffold_phrases = [
         "make a folder named", "make a folder called",
         "create a folder named", "create a folder called",
@@ -86,25 +97,11 @@ def force_intent(command):
     if any(p in lower for p in scaffold_phrases):
         return "scaffold_project"
 
-    # ---- 2. READ ERROR (screen analysis) ----
-    has_read_word = any(w in lower for w in [
-        "read this", "read the", "read error", "read screen", "fix it", "anazlyze it", "analyse it",
-        "what is this error", "what's this error", "whats this error",
-        "explain this error", "explain the error",
-        "fix this error", "fix the error", "fix error",
-        "solve this error", "resolve this error",
-        "analyze this error", "analyse this error",
-        "diagnose this error", "diagnose the error",
-    ])
-    has_error_word = any(w in lower for w in [
-        "error", "errors", "exception", "traceback",
-        "stack trace", "stacktrace", "bug",
-    ])
-    has_screen_word = any(w in lower for w in [
-        "screen", "this page", "this window",
-    ])
-    if has_read_word and (has_error_word or has_screen_word):
-        return "read_error"
+    # ---- 2. ZIP AND SEND ----
+    if ("zip" in lower or "compress" in lower) and "@" in lower:
+        return "zip_and_send"
+    if "zip" in lower and "send to" in lower:
+        return "zip_and_send"
 
     # ---- 3. DEV WORKSPACE ----
     dev_phrases = [
@@ -176,6 +173,7 @@ def force_intent(command):
 
     return None
 
+
 # ============================================
 # TIER 2: LLM CLASSIFIER
 # ============================================
@@ -189,6 +187,7 @@ def classify(command):
     if forced in (
         "download_current", "clone_current", "summarize_current",
         "scaffold_project", "setup_dev", "watch_media", "activity_report",
+        "zip_and_send", "introduce",
     ):
         return {"intent": forced, "entities": {}}
 
@@ -221,6 +220,8 @@ def classify(command):
     22. "summarize_current" - summarize what the user is looking at
     23. "setup_dev" - user wants to start working / set up dev environment
     24. "scaffold_project" - user wants a new Python project scaffolded
+    25. "introduce" - user asks ARK to introduce itself
+    26. "zip_and_send" - user wants to zip a folder and email it
 
     ===================================================
     THE #1 RULE — web_search vs chat
@@ -253,15 +254,23 @@ def classify(command):
     ===================================================
 
     User: "setup my dev environment"   -> setup_dev
-    User: "let's continue what I was working on" -> setup_dev
     User: "start coding"               -> setup_dev
+    User: "let's continue what I was working on" -> setup_dev
 
     ===================================================
     PROJECT SCAFFOLD (scaffold_project)
     ===================================================
 
-    User: "make a folder named X in my dev directory and install Y" -> scaffold_project
+    User: "make a folder named X in my dev directory" -> scaffold_project
     User: "create a new project called test" -> scaffold_project
+
+    ===================================================
+    INTRO (introduce)
+    ===================================================
+
+    User: "introduce yourself"          -> introduce
+    User: "who are you"                 -> introduce
+    User: "tell me about yourself"      -> introduce
 
     ===================================================
     MEMORY RULES
