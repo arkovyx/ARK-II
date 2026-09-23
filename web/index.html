@@ -29,16 +29,6 @@
             <span class="label">Chat</span>
         </a>
         <div class="sidebar-divider"></div>
-        <div class="sidebar-bottom">
-            <a class="nav-item" href="#">
-                <span class="icon">⚙</span>
-                <span class="label">Config</span>
-            </a>
-            <a class="nav-item" href="#">
-                <span class="icon">📊</span>
-                <span class="label">Stats</span>
-            </a>
-        </div>
         <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle sidebar">‹</button>
     </aside>
 
@@ -60,8 +50,7 @@
                     It listens, remembers, and acts — running entirely on your machine with
                     cloud APIs only for intelligence. Designed for developers who want a
                     real assistant, not a chatbot. Local memory, natural language, and
-                    zero friction. This is what Jarvis would look like if it lived in
-                    your terminal.
+                    zero friction. This is what a real dev would really like!
                 </p>
                 <a href="/chat" class="cta-button">
                     <span>Enter Chat</span>
@@ -113,13 +102,11 @@
                     <div class="doc-title">Technology</div>
                     <ul class="doc-list">
                         <li><strong>Core:</strong> Python 3.14</li>
-                        <li><strong>LLM:</strong> Groq (GPT-OSS 20B)</li>
+                        <li><strong>API:</strong> Groq, Google & Tavily</li>
                         <li><strong>Speech-to-Text:</strong> Groq Whisper</li>
-                        <li><strong>Text-to-Speech:</strong> Google Gemini TTS</li>
-                        <li><strong>Wake Word:</strong> Vosk (local)</li>
                         <li><strong>Backend:</strong> Flask + WebSockets</li>
                         <li><strong>Frontend:</strong> Vanilla HTML/CSS/JS</li>
-                        <li><strong>Platform:</strong> Arch Linux + Hyprland</li>
+                        <li><strong>Platform:</strong> Arch + Hyprland</li>
                     </ul>
                 </div>
 
@@ -135,25 +122,25 @@
                 </div>
 
                 <div class="doc-panel">
-                    <div class="doc-title">How It Works</div>
+                    <div class="doc-title">Workflow</div>
                     <ul class="doc-list">
-                        <li>User input (terminal, web, or voice)</li>
+                        <li>User input</li>
                         <li>Intent classified by NLP layer</li>
                         <li>Handler executes locally or calls AI</li>
                         <li>State written to <code>data/state.json</code></li>
                         <li>Web UI polls state every 500ms</li>
-                        <li>Response spoken via Gemini TTS</li>
+                        <li>Response printed.</li>
                     </ul>
                 </div>
 
                 <div class="doc-panel">
                     <div class="doc-title">Project Structure</div>
                     <ul class="doc-list code-list">
-                        <li>src/core — brain, NLP, state</li>
-                        <li>src/features — memory, reminders, voice</li>
-                        <li>src/utils — paths, helpers</li>
+                        <li>src/core — handles core nlp and user input.</li>
+                        <li>src/features — contains all the features.</li>
+                        <li>src/utils — stores paths and helpers</li>
                         <li>web — dashboard + chat UI</li>
-                        <li>data — memory, state, commands</li>
+                        <li>data — persistent memory and other helpers.</li>
                         <li>server.py — Flask bridge</li>
                     </ul>
                 </div>
@@ -161,7 +148,7 @@
                 <div class="doc-panel">
                     <div class="doc-title">Conclusion</div>
                     <p class="doc-text">
-                        ARK-II is not a toy. It is a system designed to feel like a
+                        ARK-II is not another "chat-bot". It is a system designed to feel like a
                         true extension of the user — persistent, useful, and quiet.
                         Built on open tools, running on Arch Linux, and designed to
                         scale with the user's needs.
@@ -197,7 +184,7 @@
                     </svg>
                 </span>
             </div>
-            <div class="footer-meta">v2.0.0 · Made by arkovyx · © 2026</div>
+            <div class="footer-meta">· ARK · v2.0 · © 2026 | ARKOVYX All Rights Reserved</div>
         </footer>
     </main>
 
