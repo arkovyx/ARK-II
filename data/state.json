@@ -1,57 +1,11 @@
 {
   "status": "idle",
-  "history": [
-    {
-      "role": "ark",
-      "content": "ARK online. Type, speak, or use the web UI.",
-      "time": "11:57"
-    },
-    {
-      "role": "user",
-      "content": "Thanks for watching.",
-      "time": "11:57"
-    },
-    {
-      "role": "ark",
-      "content": "You're welcome!",
-      "time": "11:57"
-    },
-    {
-      "role": "user",
-      "content": "Thanks for watching.",
-      "time": "11:57"
-    },
-    {
-      "role": "ark",
-      "content": "You're welcome!",
-      "time": "11:57"
-    },
-    {
-      "role": "user",
-      "content": "Analyze page.",
-      "time": "11:58"
-    },
-    {
-      "role": "ark",
-      "content": "Couldn't detect what you're looking at.",
-      "time": "11:58"
-    },
-    {
-      "role": "user",
-      "content": "Analyze page.",
-      "time": "11:58"
-    },
-    {
-      "role": "ark",
-      "content": "Couldn't detect what you're looking at.",
-      "time": "11:58"
-    }
-  ],
+  "history": [],
   "tts": {
     "playing": false,
     "text": "",
     "started_at": 0
   },
-  "started_at": 1790058468.2821302,
-  "updated_at": "2026-09-22T11:58:09"
+  "started_at": 1790062963.380241,
+  "updated_at": "2026-09-22T13:19:13"
 }
