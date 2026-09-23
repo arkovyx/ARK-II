@@ -45,7 +45,6 @@ def _speak(text):
 
 
 def add_reminder(message, seconds_from_now):
-    """Add a reminder N seconds from now."""
     data = _load()
     item = {
         "id": str(uuid.uuid4())[:8],
@@ -61,7 +60,6 @@ def add_reminder(message, seconds_from_now):
 
 
 def add_alarm(message, target_timestamp):
-    """Add an alarm at a specific unix timestamp."""
     data = _load()
     item = {
         "id": str(uuid.uuid4())[:8],
@@ -95,7 +93,6 @@ def clear_all():
 
 
 def _checker_loop():
-    """Background loop: fires reminders when their time arrives."""
     while not _stop_event.is_set():
         try:
             now = time.time()
@@ -124,7 +121,6 @@ def _checker_loop():
 
 
 def start_checker():
-    """Start the background thread that fires reminders."""
     global _checker_thread
     if _checker_thread and _checker_thread.is_alive():
         return
