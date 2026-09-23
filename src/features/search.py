@@ -9,11 +9,6 @@ TAVILY_URL = "https://api.tavily.com/search"
 
 
 def web_search(query, max_results=5):
-    """
-    Search the web using Tavily.
-    Returns (dict_with_context, None) on success,
-    or (None, error_message) on failure.
-    """
     if not TAVILY_API_KEY:
         return None, "❌ TAVILY_API_KEY not set in .env"
 
