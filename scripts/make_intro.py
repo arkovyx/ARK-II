@@ -1,7 +1,3 @@
-"""
-Generate the ARK-II intro audio ONCE using Gemini TTS.
-Saves it to data/ark_intro.wav — plays instantly forever after.
-"""
 import os
 import wave
 import base64
@@ -17,7 +13,7 @@ PRIMARY_KEY = os.getenv("GEMINI_API_KEY_1")
 OUTPUT = Path(__file__).resolve().parent.parent / "data" / "ark_intro.wav"
 
 # ============================================
-# EDIT THIS SCRIPT — what ARK says on stage
+# INTRODUCTION
 # ============================================
 INTRO_SCRIPT = """
 Hi, I am ark — your personal AI assistant.
@@ -62,11 +58,11 @@ if __name__ == "__main__":
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     try:
         _synthesize(INTRO_SCRIPT.strip(), PRIMARY_KEY)
-        print(f"✅ Intro saved: {OUTPUT}")
+        print(f"Intro saved: {OUTPUT}")
     except Exception as e:
         print(f"Primary failed: {e}")
         if BACKUP_KEY:
             _synthesize(INTRO_SCRIPT.strip(), BACKUP_KEY)
-            print(f"✅ Intro saved (backup key): {OUTPUT}")
+            print(f"Intro saved (backup key): {OUTPUT}")
         else:
             raise
