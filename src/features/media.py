@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 # ============================================
-# CONFIG — EDIT THESE
+# CONFIG
 # ============================================
 MEDIA_ROOT = Path.home() / "data" / "media"
 PROGRESS_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "media_progress.json"
@@ -70,9 +70,6 @@ def _episode_key(path):
 # THE MAIN FEATURE
 # ============================================
 def watch_show(query):
-    """
-    Find the show, pick the next unwatched episode, and play it.
-    """
     query_lower = query.lower().strip()
 
     # Find which show the user means
