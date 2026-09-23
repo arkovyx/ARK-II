@@ -29,12 +29,6 @@ def _notify(title, message, timeout_ms=3000):
 
 
 def _extract_project_name(command):
-    """
-    Extract project name from phrases like:
-      'make a folder named new project'
-      'create a project called my app'
-      'new project called test'
-    """
     patterns = [
         r"named\s+([a-zA-Z0-9_\- ]+?)(?:\s+in|\s+and|\s+then|$)",
         r"called\s+([a-zA-Z0-9_\- ]+?)(?:\s+in|\s+and|\s+then|$)",
@@ -44,7 +38,6 @@ def _extract_project_name(command):
         m = re.search(p, command.lower())
         if m:
             name = m.group(1).strip()
-            # Clean it
             name = re.sub(r"\s+", "-", name)
             name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
             if name and name not in ("in", "and", "then"):
@@ -53,10 +46,6 @@ def _extract_project_name(command):
 
 
 def _extract_packages(command):
-    """
-    Find packages mentioned in the command.
-    Returns list of pip package names.
-    """
     lower = command.lower()
     packages = []
     for keyword, pip_name in PACKAGE_KEYWORDS.items():
@@ -66,13 +55,6 @@ def _extract_packages(command):
 
 
 def scaffold_project(command):
-    """
-    Build a new Python project:
-      1. Create folder in ~/dev/<name>/
-      2. Create venv inside
-      3. pip install detected packages
-      4. Create main.py with imports at top
-    """
     name = _extract_project_name(command)
     if not name:
         return "❌ Couldn't figure out the project name. Try: 'make a folder named myproject in my dev directory'"
