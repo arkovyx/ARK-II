@@ -20,11 +20,10 @@ from src.features.get import get_last_browser_url, get_active_window
 from src.features.download import download_video
 from src.features.git import clone_repo
 from src.features.summarize import get_active_content
-
 from src.features.workspace import setup_dev_environment
 from src.features.media import watch_show
 from src.features.scaffold import scaffold_project
-from src.features.error_fix import read_and_fix_error
+from src.features.intro import play_intro
 
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
@@ -54,7 +53,10 @@ def handle_command(command):
     # INTENT HANDLERS
     # ============================================
 
-    if intent == "time":
+    if intent == "introduce":
+        response = play_intro()
+
+    elif intent == "time":
         response = time.strftime("%I:%M %p")
 
     elif intent == "date":
@@ -268,14 +270,11 @@ def handle_command(command):
     elif intent == "scaffold_project":
         response = scaffold_project(command)
 
-    elif intent == "read_error":
-        response = read_and_fix_error()
-
     else:
         # Fallback: chat with AI
         try:
             r = client.chat.completions.create(
-                model="qwen/qwen3.8-27b",
+                model="openai/gpt-oss-20b",
                 messages=[
                     {"role": "system", "content": "You are ARK, a helpful AI assistant. Be concise but complete."},
                     {"role": "user", "content": command},
