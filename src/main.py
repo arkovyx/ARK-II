@@ -31,14 +31,13 @@ client = Groq(api_key=api_key)
 
 
 def handle_command(command):
-    """Central brain — shared by terminal, web, voice."""
     command = command.strip()
     if not command:
         return None
 
     if command == "clear":
         state.clear_history()
-        return "🧹 cleared"
+        return "web cleared"
 
     state.append_history("user", command)
     state.set_status("thinking")
@@ -113,7 +112,7 @@ def handle_command(command):
         else:
             msg = extract_message(text)
             item = add_reminder(msg, secs)
-            response = f"⏰ Reminder set: '{msg}' in {human} (id: {item['id']})"
+            response = f" Reminder set: '{msg}' in {human} (id: {item['id']})"
 
     elif intent == "alarm":
         text = entities.get("text", command)
@@ -123,7 +122,7 @@ def handle_command(command):
         else:
             msg = extract_message(text)
             item = add_alarm(msg, time.time() + secs)
-            response = f"⏱️ Alarm set for {human} (id: {item['id']})"
+            response = f"󰀠 Alarm set for {human} (id: {item['id']})"
 
     elif intent == "list_reminders":
         pending = list_pending()
@@ -137,7 +136,7 @@ def handle_command(command):
                 mins = remaining // 60
                 secs = remaining % 60
                 when = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
-                icon = "⏰" if r["type"] == "reminder" else "⏱️"
+                icon = "󰀠" if r["type"] == "reminder" else ""
                 lines.append(f"  {icon} [{r['id']}] {r['message']} — in {when}")
             response = "\n".join(lines)
 
@@ -201,7 +200,7 @@ def handle_command(command):
                 max_age_minutes=30,
             )
         if not url:
-            response = "No browser tab detected. Open a YouTube video first."
+            response = "No browser tab detected."
         elif "youtube.com" not in url and "youtu.be" not in url:
             response = f"Not a YouTube URL: {url[:60]}"
         else:
@@ -213,7 +212,7 @@ def handle_command(command):
             max_age_minutes=60,
         )
         if not url:
-            response = "No browser tab detected. Open a GitHub repo first."
+            response = "No browser tab detected."
         elif "github.com" not in url:
             response = f"Not a GitHub URL: {url[:60]}"
         else:
@@ -295,27 +294,14 @@ def handle_command(command):
 def terminal_loop():
     while True:
         try:
-            cmd = input("> ").strip()
+            cmd = input("YOU: ").strip()
             if not cmd:
                 continue
             if cmd == "exit":
                 os._exit(0)
             response = handle_command(cmd)
             if response:
-                print(f"🤖 {response}\n")
-        except (EOFError, KeyboardInterrupt):
-            os._exit(0)
-
-
-def web_poll_loop():
-    while True:
-        try:
-            commands = read_new_commands()
-            for cmd in commands:
-                print(f"🌐 [web] {cmd}")
-                response = handle_command(cmd)
-                if response:
-                    print(f"🤖 {response}\n")
+                print(f"ARK: {response}\n")
         except Exception as e:
             print(f"command_reader error: {e}")
         time.sleep(0.5)
@@ -328,11 +314,12 @@ def main():
     start_checker()
 
     print("""
-╔══════════════════════════════════════════╗
-║              ARK-II                      ║
-║  Terminal: type commands                 ║
-║  Web:      http://localhost:8000         ║
-╚══════════════════════════════════════════╝
+ █████╗ ██████╗ ██╗  ██╗    ██╗██╗
+██╔══██╗██╔══██╗██║ ██╔╝    ██║██║
+███████║██████╔╝█████╔╝     ██║██║
+██╔══██║██╔══██╗██╔═██╗     ██║██║
+██║  ██║██║  ██║██║  ██╗    ██║██║
+╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝    ╚═╝╚═╝
 """)
 
     t1 = threading.Thread(target=web_poll_loop, daemon=True)
@@ -345,7 +332,7 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n👋 Bye")
+        print("\nBye")
 
 
 if __name__ == "__main__":
