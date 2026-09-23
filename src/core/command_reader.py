@@ -13,10 +13,6 @@ def _ensure_file():
 
 
 def read_new_commands():
-    """
-    Return list of unprocessed commands from web.
-    Clears the file after reading.
-    """
     _ensure_file()
     try:
         with open(COMMAND_FILE, "r") as f:
