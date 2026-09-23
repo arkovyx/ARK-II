@@ -68,7 +68,7 @@ DEMONSTRATIVES = ["this", "it", "the", "here", "current"]
 
 
 # ============================================
-# TIER 1: FAST PYTHON PRE-CHECK (STRICT PRIORITY)
+# STRICT PRIORITY
 # ============================================
 
 def force_intent(command):
@@ -96,12 +96,6 @@ def force_intent(command):
     ]
     if any(p in lower for p in scaffold_phrases):
         return "scaffold_project"
-
-    # ---- 2. ZIP AND SEND ----
-    if ("zip" in lower or "compress" in lower) and "@" in lower:
-        return "zip_and_send"
-    if "zip" in lower and "send to" in lower:
-        return "zip_and_send"
 
     # ---- 3. DEV WORKSPACE ----
     dev_phrases = [
@@ -175,7 +169,7 @@ def force_intent(command):
 
 
 # ============================================
-# TIER 2: LLM CLASSIFIER
+# LLM CLASSIFIER
 # ============================================
 
 def classify(command):
