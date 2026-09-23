@@ -8,7 +8,6 @@ from pathlib import Path
 
 
 def get_active_window():
-    """Returns active window info from Hyprland."""
     try:
         r = subprocess.run(
             ["hyprctl", "activewindow", "-j"],
@@ -27,9 +26,8 @@ def get_active_window():
 
 
 def _find_firefox_places():
-    """Locate Firefox/LibreWolf history database."""
     patterns = [
-        # LibreWolf (newer, XDG-compliant) — YOUR path
+        # LibreWolf (newer, XDG-compliant)
         str(Path.home() / ".config" / "librewolf" / "librewolf" / "*.default*" / "places.sqlite"),
 
         # LibreWolf (older path)
@@ -50,10 +48,6 @@ def _find_firefox_places():
             return matches[0]
     return None
 
-
-# In src/features/get.py, REPLACE the get_last_browser_url function with this:
-
-# Domains that ARK should ignore (they're local/UI pages)
 IGNORED_URL_PARTS = [
     "127.0.0.1", "localhost", "0.0.0.0",
     "about:", "file:", "chrome:", "place:",
@@ -62,15 +56,6 @@ IGNORED_URL_PARTS = [
 
 
 def get_last_browser_url(domain_filter=None, max_age_minutes=30):
-    """
-    Read the most recently visited URL from Firefox/LibreWolf history.
-
-    Args:
-        domain_filter: if set (e.g. "github.com"), only returns URLs containing this.
-        max_age_minutes: only consider visits within this many minutes.
-
-    Returns (url, title) or (None, None).
-    """
     db = _find_firefox_places()
     if not db:
         return None, None
@@ -131,10 +116,6 @@ def get_last_browser_url(domain_filter=None, max_age_minutes=30):
 
 
 def get_active_content():
-    """
-    Figure out what user is looking at and return (type, content).
-    Types: 'url' | 'file' | 'none'
-    """
     window = get_active_window()
     if not window:
         return "none", None
