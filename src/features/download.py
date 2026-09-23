@@ -28,7 +28,6 @@ def _do_download(url):
 
 
 def download_video(url):
-    """Start download in background, return immediately."""
     if not url:
         return "No URL provided"
     _notify("📥 ARK", "Download started...")
