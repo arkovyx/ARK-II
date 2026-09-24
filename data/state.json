@@ -1,11 +1,22 @@
 {
   "status": "idle",
-  "history": [],
+  "history": [
+    {
+      "role": "user",
+      "content": "let's watch mr robot",
+      "time": "18:06"
+    },
+    {
+      "role": "ark",
+      "content": "\u25b6\ufe0f Playing 1.Mr-Robot \u2014 episode 2/44\n   Mr.Robot.S01E02.eps1.1.ones-and-zer0es.mpeg.1080p.10bit.BluRay.AAC5.1.",
+      "time": "18:06"
+    }
+  ],
   "tts": {
     "playing": false,
     "text": "",
     "started_at": 0
   },
-  "started_at": 1790170046.5051277,
-  "updated_at": "2026-09-23T18:57:30"
+  "started_at": 1790253001.0924423,
+  "updated_at": "2026-09-24T18:06:32"
 }
