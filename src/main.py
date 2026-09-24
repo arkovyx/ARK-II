@@ -1,5 +1,6 @@
 import time
 import os
+import json
 import threading
 from pathlib import Path
 
@@ -112,7 +113,7 @@ def handle_command(command):
         else:
             msg = extract_message(text)
             item = add_reminder(msg, secs)
-            response = f" Reminder set: '{msg}' in {human} (id: {item['id']})"
+            response = f"Reminder set: '{msg}' in {human} (id: {item['id']})"
 
     elif intent == "alarm":
         text = entities.get("text", command)
@@ -122,7 +123,7 @@ def handle_command(command):
         else:
             msg = extract_message(text)
             item = add_alarm(msg, time.time() + secs)
-            response = f"󰀠 Alarm set for {human} (id: {item['id']})"
+            response = f"Alarm set for {human} (id: {item['id']})"
 
     elif intent == "list_reminders":
         pending = list_pending()
@@ -136,8 +137,8 @@ def handle_command(command):
                 mins = remaining // 60
                 secs = remaining % 60
                 when = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
-                icon = "󰀠" if r["type"] == "reminder" else ""
-                lines.append(f"  {icon} [{r['id']}] {r['message']} — in {when}")
+                icon = "reminder" if r["type"] == "reminder" else "alarm"
+                lines.append(f"  [{icon}] [{r['id']}] {r['message']} — in {when}")
             response = "\n".join(lines)
 
     elif intent == "news":
@@ -187,7 +188,7 @@ def handle_command(command):
                 )
                 response = r.choices[0].message.content
             except Exception as e:
-                response = f"❌ LLM error: {e}"
+                response = f"LLM error: {e}"
 
     elif intent == "download_current":
         url, title = get_last_browser_url(
@@ -302,14 +303,35 @@ def terminal_loop():
             response = handle_command(cmd)
             if response:
                 print(f"ARK: {response}\n")
+        except (EOFError, KeyboardInterrupt):
+            os._exit(0)
         except Exception as e:
-            print(f"command_reader error: {e}")
+            print(f"terminal_loop error: {e}")
+
+
+def web_poll_loop():
+    """Silent — reads commands from web, runs them, updates state only."""
+    while True:
+        try:
+            commands = read_new_commands()
+            for cmd in commands:
+                handle_command(cmd)
+        except Exception:
+            pass
         time.sleep(0.5)
 
 
 def main():
     state.init()
     state.append_history("ark", "ARK online. Type, speak, or use the web UI.")
+
+    # Clear any stale commands from previous sessions
+    try:
+        cmd_file = Path(__file__).resolve().parent.parent / "data" / "commands.json"
+        if cmd_file.exists():
+            cmd_file.write_text("[]")
+    except Exception:
+        pass
 
     start_checker()
 
